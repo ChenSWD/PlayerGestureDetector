@@ -16,7 +16,7 @@ import java.lang.ref.WeakReference;
 public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListener {
     private WeakReference<VideoGestureListener> listener;
     private int screenWidth, centerW;
-    //归一化视频长宽
+    //播放器View的长宽DP
     private float dpVideoWidth, dpVideoHeight;
     private ScrollMode scrollMode = ScrollMode.NONE;
     private long timeStamp;
@@ -24,9 +24,9 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
     private int scrollRatio = 1;    //快进的比率，速度越快，值越大
     private int preDpVideoDuration = 0;     //每一dp，快进的时长,ms
     private float density;
-    private int totalDuration = 0;      //快进快退值
-    private float leftTBValue = 0;      //左边值
-    private float rightTBValue = 0;     //右边值
+    private int totalDuration = 0;      //单次快进快退累计值
+    private float leftTBValue = 0;      //单次左边累计值(一般是亮度)
+    private float rightTBValue = 0;     //单次右边累计值(一般是声音)
 
     public PlayerGestureListener(VideoGestureListener listener, Context context) {
         this.listener = new WeakReference<>(listener);
@@ -41,6 +41,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
         density = context.getResources().getDisplayMetrics().density;
     }
 
+    //设置播放器SurfaceView的宽高
     public void setVideoWH(int w, int h) {
         dpVideoWidth = w / density;
         dpVideoHeight = h / density;
@@ -53,6 +54,8 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
         scrollMode = ScrollMode.NONE;
         timeStamp = System.currentTimeMillis();
         totalDuration = 0;
+        leftTBValue = 0;
+        rightTBValue = 0;
         if (listener.get() != null) {
             listener.get().onGestureDown();
         }
@@ -130,15 +133,15 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
         if (listener.get() != null) {
             listener.get().onGestureSingleClick();
         }
-        //单击事件，在双击事件发生时不会产生这个事件
+        //单击事件，在双击事件发生时不会产生这个事件，所以用这个回调作为播放器单击事件
         return super.onSingleTapConfirmed(e);
     }
 
-    /**
+    /***
      * 根据滑动速度更新速度比率值，这样可以在滑动速率较快时，快进的速度也会变快，可以根据需要调整
-     *
-     * @param dpX：横向滑动距离,
-     * @param duration：时间间隔
+     * 根据实验，正常速度一般在10~40dp/s
+     * @param dpX：横向滑动距离 dp
+     * @param duration：时间间隔 ms
      */
     private void updateScrollRatio(float dpX, long duration) {
         int ratio = (int) ((Math.abs(dpX) / duration) * 1000);
@@ -163,7 +166,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
         }
     }
 
-    //更新快进进度,totalDuration：当前快进的总值
+    //累积快进进度,totalDuration：当前快进的总值，负值代表是要快退
     private void updateVideoTime(int duration) {
         totalDuration += duration;
         if (listener.get() != null) {
@@ -171,7 +174,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
         }
     }
 
-    //更新亮度
+    //累积亮度
     private void updateVideoLeftTB(float ratio) {
         leftTBValue += ratio;
         if (listener.get() != null) {
@@ -179,7 +182,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
         }
     }
 
-    //更新声音
+    //累积声音
     private void updateVideoRightTB(float ratio) {
         rightTBValue += ratio;
         if (listener.get() != null) {
@@ -188,16 +191,16 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
     }
 
     public interface VideoGestureListener {
-        /**
+        /***
          * 手指在Layout左半部上下滑动时候调用，一般是亮度手势
-         *
+         * 从View底部滑动到顶部，代表从0升到1
          * @param ratio：0-1 之间，1代表最亮，0代表最暗
          */
         void onGestureLeftTB(float ratio);
 
-        /**
+        /***
          * 手指在Layout右半部上下滑动时候调用，一般是音量手势
-         *
+         * 从View底部滑动到顶部，代表从0升到1
          * @param ratio：0-1 之间，1代表音量最大，0代表音量最低
          */
         void onGestureRightTB(float ratio);
