@@ -32,3 +32,9 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+task printJinkins() {
+    doLast {
+        println("is jnikins = " + project.IS_JENKINS)
+    }
+}
